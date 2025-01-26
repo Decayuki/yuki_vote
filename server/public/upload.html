@@ -1,158 +1,127 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Upload des Logos</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .upload-form {
-            border: 2px dashed #ccc;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .logo-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .logo-group {
-            margin-bottom: 30px;
-            border: 1px solid #eee;
-            padding: 15px;
-        }
-        .logo-group h3 {
-            margin-top: 0;
-            background: #f5f5f5;
-            padding: 10px;
-        }
-        .logo-item {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: center;
-        }
-        .logo-item img {
-            max-width: 100%;
-            height: auto;
-        }
-    </style>
+    <title>Upload Logo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-    <h1>Upload des Logos</h1>
-    
-    <div class="upload-form">
-        <form id="uploadForm">
+    <div class="container">
+        <h1>Upload Logo</h1>
+        <div id="error-message" style="color: red; margin-bottom: 20px;"></div>
+        <form id="uploadForm" class="upload-form">
             <div class="form-group">
-                <label for="groupNumber">Numéro du groupe:</label>
-                <input type="number" id="groupNumber" name="groupNumber" min="1" required>
+                <label for="groupNumber">Numéro de Groupe:</label>
+                <input type="number" id="groupNumber" name="groupNumber" required min="1">
             </div>
             <div class="form-group">
                 <label for="variant">Variante:</label>
-                <select id="variant" name="variant" required>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                </select>
+                <input type="text" id="variant" name="variant" required pattern="[A-Da-d]" title="Entrez une lettre de A à D">
             </div>
             <div class="form-group">
-                <label for="name">Nom du logo (optionnel):</label>
-                <input type="text" id="name" name="name">
-            </div>
-            <div class="form-group">
-                <label for="logo">Fichier image:</label>
+                <label for="logo">Logo:</label>
                 <input type="file" id="logo" name="logo" accept="image/*" required>
             </div>
-            <button type="submit">Uploader</button>
+            <button type="submit" class="btn">Upload</button>
         </form>
+        
+        <div id="uploaded-logos" class="logo-grid">
+            <!-- Les logos uploadés seront affichés ici -->
+        </div>
     </div>
 
-    <h2>Logos existants</h2>
-    <div id="logoList"></div>
-
     <script>
-        // Fonction pour charger la liste des logos
+        // Connexion Socket.IO avec l'URL actuelle
+        const socket = io(window.location.origin);
+
         async function loadLogos() {
             try {
-                const response = await fetch('/api/logos');
-                const logos = await response.json();
-                const logoList = document.getElementById('logoList');
+                const response = await fetch('./api/logos');
+                if (!response.ok) throw new Error('Failed to load logos');
                 
-                // Grouper les logos par groupNumber
-                const groupedLogos = logos.reduce((groups, logo) => {
-                    const group = logo.groupNumber;
-                    if (!groups[group]) {
-                        groups[group] = [];
-                    }
-                    groups[group].push(logo);
-                    return groups;
-                }, {});
+                const logos = await response.json();
+                if (!Array.isArray(logos)) {
+                    throw new Error('Invalid logos data received');
+                }
 
-                // Afficher les logos groupés
-                logoList.innerHTML = Object.entries(groupedLogos)
-                    .sort(([a], [b]) => Number(a) - Number(b))
-                    .map(([group, logos]) => `
-                        <div class="logo-group">
-                            <h3>Groupe ${group}</h3>
-                            <div class="logo-list">
-                                ${logos
-                                    .sort((a, b) => a.variant.localeCompare(b.variant))
-                                    .map(logo => `
-                                        <div class="logo-item">
-                                            <img src="${logo.imageUrl}" alt="${logo.name}">
-                                            <p>Variante ${logo.variant}</p>
-                                            <p>${logo.name || 'Sans nom'}</p>
-                                        </div>
-                                    `).join('')}
-                            </div>
+                document.getElementById('uploaded-logos').innerHTML = logos.map(logo => `
+                    <div class="logo-item">
+                        <img src="${logo.image_url}" alt="Logo ${logo.group_number}${logo.variant}">
+                        <div class="logo-info">
+                            <span>Group ${logo.group_number}</span>
+                            <span>Variant ${logo.variant}</span>
                         </div>
-                    `).join('');
+                    </div>
+                `).join('');
                 console.log('Logos loaded:', logos);
             } catch (error) {
                 console.error('Error loading logos:', error);
+                document.getElementById('error-message').textContent = error.message;
             }
         }
 
-        // Gérer l'upload du formulaire
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData();
-            formData.append('groupNumber', document.getElementById('groupNumber').value);
-            formData.append('variant', document.getElementById('variant').value);
-            formData.append('name', document.getElementById('name').value || `Logo ${document.getElementById('groupNumber').value}${document.getElementById('variant').value}`);
-            formData.append('logo', document.getElementById('logo').files[0]);
-
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = '';
+            
             try {
-                const response = await fetch('/api/logos/upload', {
+                const formData = new FormData();
+                const groupNumber = document.getElementById('groupNumber').value;
+                const variant = document.getElementById('variant').value.toUpperCase();
+                const logoFile = document.getElementById('logo').files[0];
+
+                console.log('Preparing upload:', { groupNumber, variant, fileName: logoFile.name });
+
+                formData.append('groupNumber', groupNumber);
+                formData.append('variant', variant);
+                formData.append('logo', logoFile);
+
+                const response = await fetch('./api/upload', {
                     method: 'POST',
                     body: formData
                 });
+
                 const result = await response.json();
                 console.log('Upload response:', result);
 
-                if (response.ok) {
-                    console.log('Upload successful!');
-                    document.getElementById('uploadForm').reset();
-                    loadLogos();
-                } else {
-                    console.error('Upload failed:', result.error);
-                    alert('Erreur: ' + result.error);
+                if (!response.ok) {
+                    throw new Error(result.error || 'Upload failed');
                 }
+
+                errorDiv.style.color = 'green';
+                errorDiv.textContent = 'Upload successful!';
+                loadLogos();
+                e.target.reset();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Erreur lors de l\'upload');
+                console.error('Upload error:', error);
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = `Error: ${error.message}`;
             }
         });
 
-        // Charger les logos au chargement de la page
+        // Validate variant input
+        document.getElementById('variant').addEventListener('input', (e) => {
+            const value = e.target.value.toUpperCase();
+            if (!/^[A-D]$/.test(value)) {
+                e.target.setCustomValidity('Please enter a letter from A to D');
+            } else {
+                e.target.setCustomValidity('');
+            }
+        });
+
+        // Load existing logos on page load
         loadLogos();
+
+        // Listen for real-time updates
+        socket.on('logoAdded', () => {
+            loadLogos();
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Socket.IO connection error:', error);
+        });
     </script>
 </body>
 </html>
