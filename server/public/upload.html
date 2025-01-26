@@ -3,7 +3,7 @@
 <head>
     <title>Upload Logo</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
@@ -32,13 +32,24 @@
     </div>
 
     <script>
+        // Configuration de base
+        const API_BASE = '';  // Vide pour les chemins relatifs
+        
         // Connexion Socket.IO avec l'URL actuelle
-        const socket = io(window.location.origin);
+        const socket = io(window.location.origin, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5
+        });
 
         async function loadLogos() {
+            const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/logos');
-                if (!response.ok) throw new Error('Failed to load logos');
+                const response = await fetch(`${API_BASE}/api/logos`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Failed to load logos: ${response.status}`);
+                }
                 
                 const logos = await response.json();
                 if (!Array.isArray(logos)) {
@@ -47,17 +58,19 @@
 
                 document.getElementById('uploaded-logos').innerHTML = logos.map(logo => `
                     <div class="logo-item">
-                        <img src="${logo.image_url}" alt="Logo ${logo.group_number}${logo.variant}">
+                        <img src="${logo.image_url}" alt="Logo ${logo.group_number}${logo.variant}" onerror="this.src='/placeholder.png'">
                         <div class="logo-info">
                             <span>Group ${logo.group_number}</span>
                             <span>Variant ${logo.variant}</span>
                         </div>
                     </div>
                 `).join('');
-                console.log('Logos loaded:', logos);
+                
+                errorDiv.textContent = '';
+                console.log('Logos loaded successfully');
             } catch (error) {
                 console.error('Error loading logos:', error);
-                document.getElementById('error-message').textContent = error.message;
+                errorDiv.textContent = `Error: ${error.message}`;
             }
         }
 
@@ -65,6 +78,8 @@
             e.preventDefault();
             const errorDiv = document.getElementById('error-message');
             errorDiv.textContent = '';
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
             
             try {
                 const formData = new FormData();
@@ -72,13 +87,21 @@
                 const variant = document.getElementById('variant').value.toUpperCase();
                 const logoFile = document.getElementById('logo').files[0];
 
+                if (!logoFile) {
+                    throw new Error('Please select a file to upload');
+                }
+
+                if (logoFile.size > 5 * 1024 * 1024) {
+                    throw new Error('File size must be less than 5MB');
+                }
+
                 console.log('Preparing upload:', { groupNumber, variant, fileName: logoFile.name });
 
                 formData.append('groupNumber', groupNumber);
                 formData.append('variant', variant);
                 formData.append('logo', logoFile);
 
-                const response = await fetch('/api/upload', {
+                const response = await fetch(`${API_BASE}/api/upload`, {
                     method: 'POST',
                     body: formData
                 });
@@ -98,6 +121,8 @@
                 console.error('Upload error:', error);
                 errorDiv.style.color = 'red';
                 errorDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                submitButton.disabled = false;
             }
         });
 
@@ -114,13 +139,27 @@
         // Load existing logos on page load
         loadLogos();
 
-        // Listen for real-time updates
+        // Socket.IO event handlers
         socket.on('logoAdded', () => {
+            console.log('New logo added, refreshing...');
             loadLogos();
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket.IO connected');
+            document.getElementById('error-message').textContent = '';
         });
 
         socket.on('connect_error', (error) => {
             console.error('Socket.IO connection error:', error);
+            document.getElementById('error-message').textContent = `Connection error: ${error.message}`;
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Socket.IO disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                socket.connect();
+            }
         });
     </script>
 </body>

@@ -27,6 +27,9 @@
     </div>
 
     <script>
+        // Configuration de base
+        const API_BASE = '';  // Vide pour les chemins relatifs
+        
         // Connexion Socket.IO avec l'URL actuelle
         const socket = io(window.location.origin, {
             transports: ['websocket', 'polling'],
@@ -38,7 +41,7 @@
         async function loadLogos() {
             const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/logos');
+                const response = await fetch(`${API_BASE}/api/logos`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.error || `Failed to load logos: ${response.status}`);
@@ -53,7 +56,7 @@
                 
                 container.innerHTML = logos.map(logo => `
                     <div class="logo-item">
-                        <img src="${logo.image_url}" alt="Logo ${logo.group_number}${logo.variant}">
+                        <img src="${logo.image_url}" alt="Logo ${logo.group_number}${logo.variant}" onerror="this.src='/placeholder.png'">
                         <div class="logo-info">
                             <span>Group ${logo.group_number}</span>
                             <span>Variant ${logo.variant}</span>
@@ -107,7 +110,7 @@
         async function submitVote(logoId, rating, position) {
             const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/vote', {
+                const response = await fetch(`${API_BASE}/api/vote`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -136,7 +139,7 @@
         async function resetVotes() {
             const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/reset-votes', {
+                const response = await fetch(`${API_BASE}/api/reset-votes`, {
                     method: 'POST'
                 });
 
@@ -159,7 +162,7 @@
         async function showResults() {
             const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/results');
+                const response = await fetch(`${API_BASE}/api/results`);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.error || `Failed to fetch results: ${response.status}`);
@@ -176,7 +179,7 @@
                     <div class="results-grid">
                         ${results.map(result => `
                             <div class="result-item tier-${result.tier.toLowerCase()}">
-                                <img src="${result.image_url}" alt="Logo ${result.group_number}${result.variant}">
+                                <img src="${result.image_url}" alt="Logo ${result.group_number}${result.variant}" onerror="this.src='/placeholder.png'">
                                 <div class="result-info">
                                     <span>Group ${result.group_number}</span>
                                     <span>Variant ${result.variant}</span>
@@ -200,10 +203,12 @@
 
         // Écouter les mises à jour en temps réel
         socket.on('voteAdded', () => {
+            console.log('Vote added, refreshing results...');
             showResults();
         });
 
         socket.on('votesReset', () => {
+            console.log('Votes reset, refreshing results...');
             showResults();
         });
 
