@@ -25,16 +25,21 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: corsOrigin,
-        methods: ['GET', 'POST']
+        origin: "*",
+        methods: ["GET", "POST"]
     }
 });
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/logos', express.static(path.join(__dirname, 'public/logos')));
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -160,10 +165,11 @@ io.on('connection', (socket) => {
     });
 });
 
+// Initialiser la base de données
+initDb().catch(console.error);
+
 // Démarrer le serveur
-server.listen(port, host, () => {
-    console.log(`Serveur démarré sur http://${host}:${port}`);
-    
-    // Initialiser la base de données
-    initDb().catch(console.error);
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+    console.log(`Serveur démarré sur http://localhost:${PORT}`);
 });
