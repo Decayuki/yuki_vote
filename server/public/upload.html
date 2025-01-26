@@ -81,7 +81,7 @@
         // Fonction pour charger la liste des logos
         async function loadLogos() {
             try {
-                const response = await fetch('http://localhost:3001/api/logos');
+                const response = await fetch('/api/logos');
                 const logos = await response.json();
                 const logoList = document.getElementById('logoList');
                 
@@ -130,7 +130,7 @@
             formData.append('logo', document.getElementById('logo').files[0]);
 
             try {
-                const response = await fetch('http://localhost:3001/api/logos/upload', {
+                const response = await fetch('/api/logos/upload', {
                     method: 'POST',
                     body: formData
                 });
