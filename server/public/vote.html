@@ -3,9 +3,33 @@
 <head>
     <title>Vote des Logos - Tier List</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            background: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
         .logo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -14,20 +38,17 @@
         }
 
         .logo-item {
-            background: var(--card-bg);
+            background: white;
             border-radius: 15px;
             padding: 25px;
             text-align: center;
-            box-shadow: 0 4px 6px var(--shadow-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         .logo-item:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 15px var(--shadow-color);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
         }
 
         .logo-container {
@@ -37,7 +58,7 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 20px;
-            background: var(--hover-bg);
+            background: #f8f9fa;
             border-radius: 10px;
             padding: 15px;
         }
@@ -49,7 +70,7 @@
         }
 
         .group-label {
-            background: var(--accent-color);
+            background: #3498db;
             color: white;
             padding: 6px 15px;
             border-radius: 20px;
@@ -64,18 +85,17 @@
             justify-content: center;
             margin-top: 15px;
             padding: 10px;
-            background: var(--hover-bg);
+            background: #f8f9fa;
             border-radius: 10px;
-            width: 100%;
         }
 
         .rating-button {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            border: 2px solid var(--border-color);
-            background: var(--card-bg);
-            color: var(--text-color);
+            border: 2px solid #ddd;
+            background: white;
+            color: #333;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -86,17 +106,17 @@
 
         .rating-button:hover {
             transform: scale(1.1);
-            border-color: var(--accent-color);
+            border-color: #3498db;
         }
 
         .rating-button.selected {
-            background: var(--accent-color);
+            background: #3498db;
             color: white;
-            border-color: var(--accent-color);
+            border-color: #3498db;
         }
 
-        .results-section {
-            margin-top: 60px;
+        .tier {
+            margin-bottom: 40px;
         }
 
         .tier-header {
@@ -107,6 +127,12 @@
             border-radius: 10px;
             color: white;
         }
+
+        .tier-s { background: #e74c3c; }
+        .tier-a { background: #e67e22; }
+        .tier-b { background: #f1c40f; }
+        .tier-c { background: #2ecc71; }
+        .tier-d { background: #3498db; }
 
         .tier-label {
             font-size: 2em;
@@ -119,29 +145,69 @@
             opacity: 0.9;
         }
 
-        .stats {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 10px;
-            font-size: 0.9em;
-            color: var(--text-color);
-        }
-
         .loading {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: var(--card-bg);
+            background: white;
             padding: 20px 40px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px var(--shadow-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             display: none;
         }
 
         .loading.active {
             display: block;
+        }
+
+        .error-message {
+            text-align: center;
+            padding: 20px;
+            background: #fee;
+            color: #c00;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .nav {
+            background: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: #2c3e50;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #f5f5f5;
         }
 
         @keyframes fadeIn {
@@ -155,15 +221,12 @@
     </style>
 </head>
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Changer le thème">🌓</button>
-
     <nav class="nav">
         <div class="nav-container">
             <a href="/" class="nav-logo">Logo Tier List</a>
             <div class="nav-links">
                 <a href="/upload" class="nav-link">Upload</a>
                 <a href="/vote" class="nav-link">Vote</a>
-                <a href="/test" class="nav-link">Test</a>
             </div>
         </div>
     </nav>
@@ -171,8 +234,8 @@
     <div class="container">
         <h1>Vote des Logos</h1>
         
+        <div id="error-message"></div>
         <div class="logo-grid" id="logoGrid"></div>
-        
         <div class="results-section" id="results"></div>
     </div>
 
@@ -181,36 +244,39 @@
     </div>
 
     <script>
+        // Configuration
+        const isDev = window.location.hostname === 'localhost';
+        const API_BASE = isDev ? 'http://localhost:3001' : window.location.origin;
         let logos = [];
-        const socket = io(window.location.origin);
-
-        // Gestion du thème
-        function toggleTheme() {
-            const body = document.body;
-            const currentTheme = body.getAttribute('data-theme');
-            if (currentTheme === 'dark') {
-                body.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-            } else {
-                body.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        }
-
-        // Charger le thème préféré
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            document.body.setAttribute('data-theme', 'dark');
-        }
 
         // Charger les logos
         async function loadLogos() {
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error-message');
+            loading.classList.add('active');
+            
             try {
-                const response = await fetch('/api/logos');
+                console.log('Fetching logos from:', `${API_BASE}/api/logos`);
+                const response = await fetch(`${API_BASE}/api/logos`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load logos: ${response.status}`);
+                }
+                
                 logos = await response.json();
+                console.log('Received logos:', logos);
+                
+                if (!Array.isArray(logos)) {
+                    throw new Error('Invalid logos data received');
+                }
+                
                 displayLogos();
+                errorDiv.textContent = '';
             } catch (error) {
                 console.error('Error loading logos:', error);
+                errorDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                loading.classList.remove('active');
             }
         }
 
@@ -219,15 +285,19 @@
             const grid = document.getElementById('logoGrid');
             grid.innerHTML = logos.map(logo => `
                 <div class="logo-item fade-in">
-                    <span class="group-label">Groupe ${logo.groupNumber}${logo.variant}</span>
+                    <span class="group-label">Groupe ${logo.group_number}${logo.variant}</span>
                     <div class="logo-container">
-                        <img src="${logo.imageUrl}" alt="${logo.name}">
+                        <img 
+                            src="${logo.image_url}" 
+                            alt="${logo.name || `Logo ${logo.group_number}${logo.variant}`}"
+                            onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
+                        >
                     </div>
                     <div class="rating-buttons" id="rating-${logo.id}">
                         ${[1,2,3,4,5].map(rating => `
                             <button 
                                 class="rating-button" 
-                                onclick="submitVote(${logo.id}, ${rating})"
+                                onclick="submitVote('${logo.id}', ${rating})"
                                 title="Noter ${rating}/5"
                             >${rating}</button>
                         `).join('')}
@@ -239,10 +309,12 @@
         // Soumettre un vote
         async function submitVote(logoId, rating) {
             const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error-message');
             loading.classList.add('active');
             
             try {
-                const response = await fetch('/api/vote', {
+                console.log('Submitting vote:', { logoId, rating });
+                const response = await fetch(`${API_BASE}/api/vote`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -250,24 +322,28 @@
                     body: JSON.stringify({
                         votes: [{
                             logoId,
-                            rating,
-                            position: 0
+                            rating
                         }]
                     })
                 });
-                
-                if (response.ok) {
-                    const buttons = document.querySelectorAll(`#rating-${logoId} .rating-button`);
-                    buttons.forEach(btn => {
-                        btn.classList.remove('selected');
-                        if (parseInt(btn.textContent) === rating) {
-                            btn.classList.add('selected');
-                        }
-                    });
-                    refreshResults();
+
+                if (!response.ok) {
+                    throw new Error(`Vote failed: ${response.status}`);
                 }
+
+                const buttons = document.querySelectorAll(`#rating-${logoId} .rating-button`);
+                buttons.forEach(btn => {
+                    btn.classList.remove('selected');
+                    if (parseInt(btn.textContent) === rating) {
+                        btn.classList.add('selected');
+                    }
+                });
+
+                errorDiv.textContent = '';
+                refreshResults();
             } catch (error) {
                 console.error('Error submitting vote:', error);
+                errorDiv.textContent = `Error: ${error.message}`;
             } finally {
                 loading.classList.remove('active');
             }
@@ -275,12 +351,32 @@
 
         // Rafraîchir les résultats
         async function refreshResults() {
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error-message');
+            loading.classList.add('active');
+            
             try {
-                const response = await fetch('/api/results');
+                console.log('Fetching results from:', `${API_BASE}/api/results`);
+                const response = await fetch(`${API_BASE}/api/results`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load results: ${response.status}`);
+                }
+                
                 const results = await response.json();
+                console.log('Received results:', results);
+                
+                if (!Array.isArray(results)) {
+                    throw new Error('Invalid results data received');
+                }
+                
                 displayResults(results);
+                errorDiv.textContent = '';
             } catch (error) {
                 console.error('Error loading results:', error);
+                errorDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                loading.classList.remove('active');
             }
         }
 
@@ -295,7 +391,10 @@
             };
 
             results.forEach(logo => {
-                tiers[logo.tier].logos.push(logo);
+                const tier = logo.tier || 'C';
+                if (tiers[tier]) {
+                    tiers[tier].logos.push(logo);
+                }
             });
 
             const resultsDiv = document.getElementById('results');
@@ -310,13 +409,17 @@
                         <div class="logo-grid">
                             ${logos.map(logo => `
                                 <div class="logo-item">
-                                    <span class="group-label">Groupe ${logo.groupNumber}${logo.variant}</span>
+                                    <span class="group-label">Groupe ${logo.group_number}${logo.variant}</span>
                                     <div class="logo-container">
-                                        <img src="${logo.imageUrl}" alt="${logo.name}">
+                                        <img 
+                                            src="${logo.image_url}" 
+                                            alt="${logo.name || `Logo ${logo.group_number}${logo.variant}`}"
+                                            onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
+                                        >
                                     </div>
                                     <div class="stats">
-                                        <strong>Note moyenne:</strong> ${logo.averageRating ? logo.averageRating.toFixed(2) : 'N/A'}/5<br>
-                                        <strong>Nombre de votes:</strong> ${logo.voteCount}
+                                        <strong>Note moyenne:</strong> ${logo.average_rating ? logo.average_rating.toFixed(2) : 'N/A'}/5<br>
+                                        <strong>Nombre de votes:</strong> ${logo.vote_count || 0}
                                     </div>
                                 </div>
                             `).join('')}
@@ -325,11 +428,6 @@
                 `).join('')}
             `;
         }
-
-        // Écouter les mises à jour en temps réel
-        socket.on('votesUpdated', () => {
-            refreshResults();
-        });
 
         // Initialisation
         loadLogos();

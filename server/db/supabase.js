@@ -1,5 +1,5 @@
+require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { Pool } = require('pg');
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
     console.error('Missing Supabase credentials:', {
@@ -13,176 +13,245 @@ const supabase = createClient(
     process.env.SUPABASE_KEY
 );
 
-const pool = new Pool({
-    connectionString: process.env.SUPABASE_DB_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
-});
-
 const initDb = async () => {
     console.log('Initializing database...');
-    const client = await pool.connect();
     try {
-        // Créer la table des logos
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS logos (
-                id SERIAL PRIMARY KEY,
-                group_number INTEGER NOT NULL,
-                variant TEXT NOT NULL,
-                name TEXT NOT NULL,
-                image_url TEXT NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(group_number, variant)
-            );
-        `);
-
-        // Créer la table des votes
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS votes (
-                id SERIAL PRIMARY KEY,
-                logo_id INTEGER NOT NULL,
-                position INTEGER NOT NULL,
-                rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (logo_id) REFERENCES logos (id)
-            );
-        `);
-
+        // Créer la table des logos si elle n'existe pas
+        await supabase.rpc('init_logos_table');
+        
+        // Créer la table des votes si elle n'existe pas
+        await supabase.rpc('init_votes_table');
+        
         console.log('Database initialized successfully');
-    } catch (err) {
-        console.error('Error initializing database:', err);
-        throw err;
-    } finally {
-        client.release();
+    } catch (error) {
+        console.error('Error initializing database:', error);
     }
 };
 
 const uploadImage = async (file) => {
-    console.log('Starting image upload...', {
-        filename: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size
-    });
-
     try {
-        const fileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-        console.log('Uploading to Supabase storage:', fileName);
+        console.log('Starting image upload to Supabase:', {
+            originalName: file.originalname,
+            size: file.size,
+            mimetype: file.mimetype
+        });
 
-        const { data, error } = await supabase.storage
+        // Générer un nom de fichier unique
+        const timestamp = Date.now();
+        const fileName = `${timestamp}-${file.originalname}`;
+        console.log('Generated filename:', fileName);
+
+        // Upload du fichier
+        const { data: uploadData, error: uploadError } = await supabase.storage
             .from('logos')
             .upload(fileName, file.buffer, {
                 contentType: file.mimetype,
-                upsert: false
+                cacheControl: '3600'
             });
 
-        if (error) {
-            console.error('Supabase storage upload error:', error);
-            throw error;
+        if (uploadError) {
+            console.error('Error in storage.upload:', uploadError);
+            throw uploadError;
+        }
+        
+        console.log('Upload successful:', uploadData);
+
+        // Récupérer l'URL publique
+        const { data: urlData, error: urlError } = await supabase.storage
+            .from('logos')
+            .getPublicUrl(uploadData.path);
+
+        if (urlError) {
+            console.error('Error getting public URL:', urlError);
+            throw urlError;
         }
 
-        console.log('Upload successful, getting public URL');
-        const { data: { publicUrl } } = supabase.storage
-            .from('logos')
-            .getPublicUrl(fileName);
+        if (!urlData || !urlData.publicUrl) {
+            throw new Error('Failed to get public URL for uploaded file');
+        }
 
-        console.log('Public URL generated:', publicUrl);
+        const publicUrl = urlData.publicUrl;
+        console.log('Generated public URL:', publicUrl);
+        
+        // Vérifier que l'URL est valide
+        if (!publicUrl.startsWith('http')) {
+            throw new Error('Invalid public URL generated');
+        }
+
         return publicUrl;
     } catch (error) {
-        console.error('Error in uploadImage:', error);
+        console.error('Error uploading image:', error);
         throw error;
     }
 };
 
 const addLogo = async (groupNumber, variant, name, imageUrl) => {
-    console.log('Adding logo to database:', { groupNumber, variant, name, imageUrl });
-    const client = await pool.connect();
     try {
-        const result = await client.query(
-            'INSERT INTO logos (group_number, variant, name, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
-            [groupNumber, variant, name, imageUrl]
-        );
-        console.log('Logo added successfully:', result.rows[0]);
-        return result.rows[0];
+        console.log('Adding logo with data:', { groupNumber, variant, name, imageUrl });
+
+        if (!groupNumber || !variant || !imageUrl) {
+            throw new Error('Missing required fields');
+        }
+
+        // Convertir et valider le numéro de groupe
+        const parsedGroupNumber = parseInt(groupNumber);
+        if (isNaN(parsedGroupNumber)) {
+            throw new Error('Invalid group number');
+        }
+
+        // Nettoyer et valider la variante
+        const cleanVariant = variant.trim().toUpperCase();
+        if (!/^[A-D]$/.test(cleanVariant)) {
+            throw new Error('Invalid variant (must be A, B, C, or D)');
+        }
+
+        // Valider l'URL de l'image
+        if (!imageUrl.startsWith('http')) {
+            throw new Error('Invalid image URL');
+        }
+
+        const logoData = {
+            group_number: parsedGroupNumber,
+            variant: cleanVariant,
+            name: name ? name.trim() : `Logo ${parsedGroupNumber}${cleanVariant}`,
+            image_url: imageUrl
+        };
+
+        console.log('Inserting logo into database:', logoData);
+
+        const { data, error } = await supabase
+            .from('logos')
+            .insert([logoData])
+            .select();
+
+        if (error) {
+            console.error('Error in database insert:', error);
+            throw error;
+        }
+
+        if (!data || !data[0]) {
+            throw new Error('No data returned from insert');
+        }
+
+        const insertedLogo = data[0];
+        console.log('Logo added successfully:', insertedLogo);
+        return insertedLogo;
     } catch (error) {
-        console.error('Error adding logo to database:', error);
+        console.error('Error adding logo:', error);
         throw error;
-    } finally {
-        client.release();
     }
 };
 
 const getLogos = async () => {
-    console.log('Getting logos from database...');
-    const client = await pool.connect();
     try {
-        const result = await client.query('SELECT * FROM logos ORDER BY group_number, variant');
-        console.log('Logos retrieved successfully:', result.rows);
-        return result.rows;
+        console.log('Fetching logos from database...');
+        const { data, error } = await supabase
+            .from('logos')
+            .select('*')
+            .order('group_number', { ascending: true })
+            .order('variant', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching logos:', error);
+            throw error;
+        }
+
+        if (!data) {
+            console.log('No logos found');
+            return [];
+        }
+
+        // Valider et formater les données
+        const validatedLogos = data.map(logo => {
+            // Vérifier les champs requis
+            if (!logo.group_number || !logo.variant || !logo.image_url) {
+                console.error('Invalid logo data:', logo);
+                return null;
+            }
+
+            // Nettoyer et valider les données
+            const cleanedLogo = {
+                ...logo,
+                group_number: parseInt(logo.group_number),
+                variant: logo.variant.trim().toUpperCase(),
+                name: logo.name ? logo.name.trim() : `Logo ${logo.group_number}${logo.variant}`,
+                image_url: logo.image_url.trim()
+            };
+
+            // Vérifier que l'URL est valide
+            if (!cleanedLogo.image_url.startsWith('http')) {
+                console.error('Invalid image URL:', cleanedLogo.image_url);
+                return null;
+            }
+
+            return cleanedLogo;
+        }).filter(logo => logo !== null);
+
+        console.log('Processed logos:', validatedLogos);
+        return validatedLogos;
     } catch (error) {
-        console.error('Error getting logos from database:', error);
+        console.error('Error getting logos:', error);
         throw error;
-    } finally {
-        client.release();
     }
 };
 
 const addVote = async (logoId, position, rating) => {
-    console.log('Adding vote to database:', { logoId, position, rating });
-    const client = await pool.connect();
     try {
-        await client.query(
-            'INSERT INTO votes (logo_id, position, rating) VALUES ($1, $2, $3)',
-            [logoId, position, rating]
-        );
-        console.log('Vote added successfully');
+        const { data, error } = await supabase
+            .from('votes')
+            .insert([{ logo_id: logoId, position, rating }]);
+
+        if (error) throw error;
+        return data;
     } catch (error) {
-        console.error('Error adding vote to database:', error);
+        console.error('Error adding vote:', error);
         throw error;
-    } finally {
-        client.release();
     }
 };
 
 const getResults = async () => {
-    console.log('Getting results from database...');
-    const client = await pool.connect();
     try {
-        const result = await client.query(`
-            SELECT 
-                l.*,
-                COALESCE(AVG(v.rating), 0) as average_rating,
-                COUNT(v.id) as vote_count
-            FROM logos l
-            LEFT JOIN votes v ON l.id = v.logo_id
-            GROUP BY l.id
-            ORDER BY average_rating DESC
-        `);
-        
-        console.log('Results retrieved successfully:', result.rows);
-        return result.rows.map(row => ({
-            ...row,
-            tier: getTier(row.average_rating)
-        }));
+        const { data, error } = await supabase
+            .from('logos')
+            .select(`
+                *,
+                votes (rating)
+            `);
+
+        if (error) throw error;
+
+        return data.map(logo => {
+            const votes = logo.votes || [];
+            const voteCount = votes.length;
+            const averageRating = voteCount > 0
+                ? votes.reduce((sum, vote) => sum + vote.rating, 0) / voteCount
+                : 0;
+
+            return {
+                ...logo,
+                voteCount,
+                averageRating,
+                tier: getTier(averageRating)
+            };
+        });
     } catch (error) {
-        console.error('Error getting results from database:', error);
+        console.error('Error getting results:', error);
         throw error;
-    } finally {
-        client.release();
     }
 };
 
 const resetVotes = async () => {
-    console.log('Resetting votes in database...');
-    const client = await pool.connect();
     try {
-        await client.query('DELETE FROM votes');
-        console.log('Votes reset successfully');
+        const { error } = await supabase
+            .from('votes')
+            .delete()
+            .neq('id', 0);  // Delete all votes
+
+        if (error) throw error;
+        return true;
     } catch (error) {
-        console.error('Error resetting votes in database:', error);
+        console.error('Error resetting votes:', error);
         throw error;
-    } finally {
-        client.release();
     }
 };
 

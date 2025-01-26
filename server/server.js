@@ -1,187 +1,167 @@
+require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const socketIo = require('socket.io');
 const multer = require('multer');
 const path = require('path');
-const { initDb, uploadImage, addLogo, getLogos, addVote, getResults, resetVotes } = require('./db/supabase');
-const { port, host, corsOrigin } = require('./config');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
-// Configuration de multer pour le stockage en mémoire
-const storage = multer.memoryStorage();
-const upload = multer({ 
-    storage: storage,
+// Initialisation Express
+const app = express();
+
+// Configuration Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Configuration multer
+const upload = multer({
+    storage: multer.memoryStorage(),
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB max
-    },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Format de fichier non supporté'));
-        }
+        fileSize: 5 * 1024 * 1024 // 5MB
     }
 });
 
-const app = express();
-const server = http.createServer(app);
-
-// Configuration CORS
-const corsOptions = {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-app.use(cors(corsOptions));
-
-// Configuration Socket.IO
-const io = socketIo(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        credentials: true
-    },
-    transports: ['websocket', 'polling']
-});
-
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/logos', express.static(path.join(__dirname, 'public/logos')));
 
-// Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/index.html'));
-});
-
-app.get('/upload', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/upload.html'));
-});
-
-app.get('/test', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/test.html'));
-});
-
-app.get('/vote', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/vote.html'));
-});
-
-// API Routes
+// Routes API
 app.post('/api/upload', upload.single('logo'), async (req, res) => {
-    console.log('Upload request received:', {
-        file: req.file ? {
-            originalname: req.file.originalname,
-            mimetype: req.file.mimetype,
-            size: req.file.size
-        } : 'No file',
-        body: req.body
-    });
-
     try {
-        if (!req.file) {
-            console.error('No file uploaded');
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-
-        const { groupNumber, variant } = req.body;
+        console.log('Upload request received:', req.body);
         
-        if (!groupNumber || !variant) {
-            console.error('Missing required fields:', { groupNumber, variant });
-            return res.status(400).json({ error: 'Group number and variant are required' });
+        if (!req.file) {
+            throw new Error('No file uploaded');
         }
 
-        console.log('Starting upload to Supabase:', {
-            groupNumber,
-            variant,
-            fileName: req.file.originalname
-        });
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+            .from('logos')
+            .upload(
+                `${Date.now()}-${req.file.originalname}`,
+                req.file.buffer,
+                { contentType: req.file.mimetype }
+            );
 
-        // Upload to Supabase
-        const imageUrl = await uploadImage(req.file);
-        console.log('Image uploaded to Supabase:', imageUrl);
+        if (error) throw error;
 
-        // Add to database
-        const logo = await addLogo(
-            parseInt(groupNumber),
-            variant.toUpperCase(),
-            req.file.originalname,
-            imageUrl
-        );
-        console.log('Logo added to database:', logo);
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('logos')
+            .getPublicUrl(data.path);
 
-        res.json({ success: true, logo });
-        io.emit('logoAdded', logo);
+        // Save to database
+        const { data: logo, error: dbError } = await supabase
+            .from('logos')
+            .insert({
+                group_number: req.body.group_number,
+                variant: req.body.variant,
+                name: req.body.name,
+                image_url: publicUrl
+            })
+            .select()
+            .single();
+
+        if (dbError) throw dbError;
+
+        res.json(logo);
     } catch (error) {
-        console.error('Error in upload handler:', error);
-        res.status(500).json({ error: error.message || 'Internal server error' });
+        console.error('Error in upload:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.get('/api/logos', async (req, res) => {
     try {
-        const logos = await getLogos();
-        res.json(logos);
+        const { data, error } = await supabase
+            .from('logos')
+            .select('*')
+            .order('group_number', { ascending: true })
+            .order('variant', { ascending: true });
+
+        if (error) throw error;
+
+        res.json(data);
     } catch (error) {
         console.error('Error fetching logos:', error);
-        res.status(500).json({ error: 'Failed to fetch logos' });
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.post('/api/vote', async (req, res) => {
     try {
         const { votes } = req.body;
-        for (const vote of votes) {
-            await addVote(vote.logoId, vote.position, vote.rating);
+        if (!Array.isArray(votes)) {
+            throw new Error('Invalid votes format');
         }
-        
-        const results = await getResults();
-        io.emit('votesUpdated', results);
+
+        // Insert votes
+        const { error } = await supabase
+            .from('votes')
+            .insert(votes.map(v => ({
+                logo_id: v.logoId,
+                rating: v.rating
+            })));
+
+        if (error) throw error;
+
         res.json({ success: true });
     } catch (error) {
-        console.error('Error adding vote:', error);
-        res.status(500).json({ error: 'Failed to add vote' });
+        console.error('Error submitting vote:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 app.get('/api/results', async (req, res) => {
     try {
-        const results = await getResults();
+        // Get logos with their average ratings
+        const { data, error } = await supabase
+            .from('logos')
+            .select(`
+                *,
+                votes (rating)
+            `);
+
+        if (error) throw error;
+
+        // Calculate statistics
+        const results = data.map(logo => {
+            const ratings = logo.votes.map(v => v.rating);
+            const average = ratings.length > 0 
+                ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
+                : null;
+
+            // Determine tier based on average rating
+            let tier = 'C';
+            if (average !== null) {
+                if (average >= 4.5) tier = 'S';
+                else if (average >= 4) tier = 'A';
+                else if (average >= 3) tier = 'B';
+                else if (average >= 2) tier = 'C';
+                else tier = 'D';
+            }
+
+            return {
+                ...logo,
+                average_rating: average,
+                vote_count: ratings.length,
+                tier
+            };
+        });
+
         res.json(results);
     } catch (error) {
         console.error('Error fetching results:', error);
-        res.status(500).json({ error: 'Failed to fetch results' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/reset-votes', async (req, res) => {
-    try {
-        await resetVotes();
-        const results = await getResults();
-        io.emit('votesUpdated', results);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error resetting votes:', error);
-        res.status(500).json({ error: 'Failed to reset votes' });
-    }
+// Route pour servir les fichiers statiques
+app.get('/*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Socket.IO events
-io.on('connection', (socket) => {
-    console.log('Client connected');
-    
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-    });
-});
-
-// Initialiser la base de données
-initDb().catch(console.error);
-
-// Démarrer le serveur
+// Démarrage du serveur
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
