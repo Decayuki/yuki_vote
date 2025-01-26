@@ -37,7 +37,7 @@
 
         async function loadLogos() {
             try {
-                const response = await fetch('./api/logos');
+                const response = await fetch('/api/logos');
                 if (!response.ok) throw new Error('Failed to load logos');
                 
                 const logos = await response.json();
@@ -78,7 +78,7 @@
                 formData.append('variant', variant);
                 formData.append('logo', logoFile);
 
-                const response = await fetch('./api/upload', {
+                const response = await fetch('/api/upload', {
                     method: 'POST',
                     body: formData
                 });

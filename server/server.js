@@ -2,15 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
-const { initDb, uploadImage, addLogo, getLogos, addVote, getResults, resetVotes } = require('./db/supabase');
-const { port, host, corsOrigin } = require('./config');
 const multer = require('multer');
 const path = require('path');
+const { initDb, uploadImage, addLogo, getLogos, addVote, getResults, resetVotes } = require('./db/supabase');
+const { port, host, corsOrigin } = require('./config');
 
 // Configuration de multer pour le stockage en mémoire
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB max
+    },
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
         if (allowedTypes.includes(file.mimetype)) {
@@ -23,23 +26,31 @@ const upload = multer({
 
 const app = express();
 const server = http.createServer(app);
+
+// Configuration CORS
+const corsOptions = {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+// Configuration Socket.IO
 const io = socketIo(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling']
 });
 
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/logos', express.static(path.join(__dirname, 'public/logos')));
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
-});
 
 // Routes
 app.get('/', (req, res) => {
@@ -114,8 +125,8 @@ app.get('/api/logos', async (req, res) => {
         const logos = await getLogos();
         res.json(logos);
     } catch (error) {
-        console.error('Erreur lors de la récupération des logos:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        console.error('Error fetching logos:', error);
+        res.status(500).json({ error: 'Failed to fetch logos' });
     }
 });
 
@@ -130,8 +141,8 @@ app.post('/api/vote', async (req, res) => {
         io.emit('votesUpdated', results);
         res.json({ success: true });
     } catch (error) {
-        console.error('Erreur lors du vote:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        console.error('Error adding vote:', error);
+        res.status(500).json({ error: 'Failed to add vote' });
     }
 });
 
@@ -140,8 +151,8 @@ app.get('/api/results', async (req, res) => {
         const results = await getResults();
         res.json(results);
     } catch (error) {
-        console.error('Erreur lors de la récupération des résultats:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        console.error('Error fetching results:', error);
+        res.status(500).json({ error: 'Failed to fetch results' });
     }
 });
 
@@ -152,16 +163,17 @@ app.post('/api/reset-votes', async (req, res) => {
         io.emit('votesUpdated', results);
         res.json({ success: true });
     } catch (error) {
-        console.error('Erreur lors de la réinitialisation des votes:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        console.error('Error resetting votes:', error);
+        res.status(500).json({ error: 'Failed to reset votes' });
     }
 });
 
-// Socket.IO
+// Socket.IO events
 io.on('connection', (socket) => {
-    console.log('Client connecté');
+    console.log('Client connected');
+    
     socket.on('disconnect', () => {
-        console.log('Client déconnecté');
+        console.log('Client disconnected');
     });
 });
 
@@ -171,5 +183,5 @@ initDb().catch(console.error);
 // Démarrer le serveur
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-    console.log(`Serveur démarré sur http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
