@@ -182,7 +182,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         let logos = [];
-        const socket = io('http://localhost:3001');
+        const socket = io(window.location.origin);
 
         // Gestion du thème
         function toggleTheme() {

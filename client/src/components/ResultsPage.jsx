@@ -14,13 +14,22 @@ function ResultsPage() {
   const [results, setResults] = useState([]);
   
   useEffect(() => {
-    const socket = io('http://localhost:3001');
+    const socket = io(window.location.origin);
     
-    const fetchResults = () => {
-      fetch('http://localhost:3001/api/results')
-        .then(res => res.json())
-        .then(data => setResults(data))
-        .catch(error => console.error('Error fetching results:', error));
+    const fetchResults = async () => {
+      try {
+        const response = await fetch('/api/results');
+        if (!response.ok) throw new Error('Failed to fetch results');
+        
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid results data received');
+        }
+        
+        setResults(data);
+      } catch (error) {
+        console.error('Error fetching results:', error);
+      }
     };
 
     // Initial fetch

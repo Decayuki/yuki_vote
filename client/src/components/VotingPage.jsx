@@ -31,7 +31,7 @@ function VotingPage() {
   );
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/logos')
+    fetch('/api/logos')
       .then(res => res.json())
       .then(data => setLogos(data))
       .catch(error => console.error('Error fetching logos:', error));
@@ -69,7 +69,7 @@ function VotingPage() {
     }));
 
     try {
-      await fetch('http://localhost:3001/api/vote', {
+      await fetch('/api/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
