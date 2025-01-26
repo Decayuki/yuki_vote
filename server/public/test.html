@@ -3,7 +3,7 @@
 <head>
     <title>Test Votes</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
@@ -28,13 +28,21 @@
 
     <script>
         // Connexion Socket.IO avec l'URL actuelle
-        const socket = io(window.location.origin);
+        const socket = io(window.location.origin, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5
+        });
 
         // Charger les logos
         async function loadLogos() {
+            const errorDiv = document.getElementById('error-message');
             try {
                 const response = await fetch('/api/logos');
-                if (!response.ok) throw new Error('Failed to load logos');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Failed to load logos: ${response.status}`);
+                }
                 
                 const logos = await response.json();
                 const container = document.getElementById('logos-container');
@@ -59,56 +67,46 @@
                         </div>
                     </div>
                 `).join('');
+
+                errorDiv.textContent = '';
+                return logos;
             } catch (error) {
                 console.error('Error loading logos:', error);
-                document.getElementById('error-message').textContent = error.message;
+                errorDiv.textContent = `Error: ${error.message}`;
+                return [];
             }
         }
 
         // Générer des votes aléatoires
         async function generateRandomVotes() {
+            const errorDiv = document.getElementById('error-message');
             try {
-                const response = await fetch('/api/logos');
-                if (!response.ok) throw new Error('Failed to fetch logos');
-                
-                const logos = await response.json();
-                if (!Array.isArray(logos)) {
-                    throw new Error('Invalid logos data received');
+                const logos = await loadLogos();
+                if (!logos.length) {
+                    throw new Error('No logos available for voting');
                 }
-                
-                for (const logo of logos) {
-                    const position = Math.floor(Math.random() * 25); // Position 0-24
-                    const rating = Math.floor(Math.random() * 5) + 1; // Rating 1-5
-                    
-                    const voteResponse = await fetch('/api/vote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            logoId: logo.id,
-                            position,
-                            rating
-                        })
-                    });
 
-                    if (!voteResponse.ok) {
-                        throw new Error('Failed to submit vote');
-                    }
+                for (const logo of logos) {
+                    const rating = Math.floor(Math.random() * 5) + 1; // 1-5
+                    const position = Math.floor(Math.random() * 25); // 0-24
+                    
+                    await submitVote(logo.id, rating, position);
                 }
-                
-                showResults();
+
+                errorDiv.style.color = 'green';
+                errorDiv.textContent = 'Random votes generated successfully!';
+                await showResults();
             } catch (error) {
-                console.error('Error generating votes:', error);
-                document.getElementById('error-message').textContent = error.message;
+                console.error('Error generating random votes:', error);
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = `Error: ${error.message}`;
             }
         }
 
         // Soumettre un vote
-        async function submitVote(logoId, rating) {
+        async function submitVote(logoId, rating, position) {
+            const errorDiv = document.getElementById('error-message');
             try {
-                const position = Math.floor(Math.random() * 25); // Position aléatoire 0-24
-                
                 const response = await fetch('/api/vote', {
                     method: 'POST',
                     headers: {
@@ -122,39 +120,50 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to submit vote');
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Failed to submit vote: ${response.status}`);
                 }
 
-                showResults();
+                return await response.json();
             } catch (error) {
                 console.error('Error submitting vote:', error);
-                document.getElementById('error-message').textContent = error.message;
+                errorDiv.textContent = `Error: ${error.message}`;
+                throw error;
             }
         }
 
         // Réinitialiser les votes
         async function resetVotes() {
+            const errorDiv = document.getElementById('error-message');
             try {
                 const response = await fetch('/api/reset-votes', {
                     method: 'POST'
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to reset votes');
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Failed to reset votes: ${response.status}`);
                 }
 
-                showResults();
+                errorDiv.style.color = 'green';
+                errorDiv.textContent = 'Votes reset successfully!';
+                await showResults();
             } catch (error) {
                 console.error('Error resetting votes:', error);
-                document.getElementById('error-message').textContent = error.message;
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = `Error: ${error.message}`;
             }
         }
 
         // Afficher les résultats
         async function showResults() {
+            const errorDiv = document.getElementById('error-message');
             try {
                 const response = await fetch('/api/results');
-                if (!response.ok) throw new Error('Failed to fetch results');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Failed to fetch results: ${response.status}`);
+                }
                 
                 const results = await response.json();
                 if (!Array.isArray(results)) {
@@ -162,7 +171,6 @@
                 }
                 
                 const resultsDiv = document.getElementById('results');
-                
                 resultsDiv.innerHTML = `
                     <h2>Current Results</h2>
                     <div class="results-grid">
@@ -179,9 +187,11 @@
                         `).join('')}
                     </div>
                 `;
+
+                errorDiv.textContent = '';
             } catch (error) {
                 console.error('Error showing results:', error);
-                document.getElementById('error-message').textContent = error.message;
+                errorDiv.textContent = `Error: ${error.message}`;
             }
         }
 
@@ -193,8 +203,25 @@
             showResults();
         });
 
+        socket.on('votesReset', () => {
+            showResults();
+        });
+
         socket.on('connect_error', (error) => {
             console.error('Socket.IO connection error:', error);
+            document.getElementById('error-message').textContent = `Connection error: ${error.message}`;
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket.IO connected');
+            document.getElementById('error-message').textContent = '';
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Socket.IO disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                socket.connect();
+            }
         });
     </script>
 </body>

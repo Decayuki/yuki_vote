@@ -4,6 +4,7 @@
     <title>Vote des Logos - Tier List</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         .logo-grid {
             display: grid;
@@ -179,7 +180,6 @@
         Chargement...
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
         let logos = [];
         const socket = io(window.location.origin);
