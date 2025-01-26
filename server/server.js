@@ -55,25 +55,52 @@ app.get('/vote', (req, res) => {
 
 // API Routes
 app.post('/api/upload', upload.single('logo'), async (req, res) => {
+    console.log('Upload request received:', {
+        file: req.file ? {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size
+        } : 'No file',
+        body: req.body
+    });
+
     try {
-        const { groupNumber, variant } = req.body;
-        if (!req.file || !groupNumber || !variant) {
-            return res.status(400).json({ error: 'Fichier, groupe et variante requis' });
+        if (!req.file) {
+            console.error('No file uploaded');
+            return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        const { groupNumber, variant } = req.body;
+        
+        if (!groupNumber || !variant) {
+            console.error('Missing required fields:', { groupNumber, variant });
+            return res.status(400).json({ error: 'Group number and variant are required' });
+        }
+
+        console.log('Starting upload to Supabase:', {
+            groupNumber,
+            variant,
+            fileName: req.file.originalname
+        });
+
+        // Upload to Supabase
         const imageUrl = await uploadImage(req.file);
+        console.log('Image uploaded to Supabase:', imageUrl);
+
+        // Add to database
         const logo = await addLogo(
             parseInt(groupNumber),
-            variant,
-            `Logo ${groupNumber}${variant}`,
+            variant.toUpperCase(),
+            req.file.originalname,
             imageUrl
         );
+        console.log('Logo added to database:', logo);
 
-        res.json(logo);
+        res.json({ success: true, logo });
         io.emit('logoAdded', logo);
     } catch (error) {
-        console.error('Erreur lors de l\'upload:', error);
-        res.status(500).json({ error: 'Erreur lors de l\'upload' });
+        console.error('Error in upload handler:', error);
+        res.status(500).json({ error: error.message || 'Internal server error' });
     }
 });
 

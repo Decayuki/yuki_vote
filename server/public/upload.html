@@ -114,6 +114,7 @@
                             </div>
                         </div>
                     `).join('');
+                console.log('Logos loaded:', logos);
             } catch (error) {
                 console.error('Error loading logos:', error);
             }
@@ -134,11 +135,14 @@
                     body: formData
                 });
                 const result = await response.json();
+                console.log('Upload response:', result);
+
                 if (response.ok) {
-                    alert('Logo uploadé avec succès!');
+                    console.log('Upload successful!');
                     document.getElementById('uploadForm').reset();
                     loadLogos();
                 } else {
+                    console.error('Upload failed:', result.error);
                     alert('Erreur: ' + result.error);
                 }
             } catch (error) {
