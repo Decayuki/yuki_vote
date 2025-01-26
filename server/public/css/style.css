@@ -1,0 +1,204 @@
+:root {
+    /* Palette de couleurs élégante */
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #8e44ad;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #c0392b;
+    
+    /* Tiers avec des couleurs plus sophistiquées */
+    --tier-s-color: linear-gradient(135deg, #8e44ad, #9b59b6);
+    --tier-a-color: linear-gradient(135deg, #2c3e50, #34495e);
+    --tier-b-color: linear-gradient(135deg, #16a085, #1abc9c);
+    --tier-c-color: linear-gradient(135deg, #d35400, #e67e22);
+    --tier-d-color: linear-gradient(135deg, #c0392b, #e74c3c);
+
+    /* Couleurs de thème clair */
+    --bg-color: #f5f6fa;
+    --text-color: #2c3e50;
+    --card-bg: #ffffff;
+    --border-color: #dcdde1;
+    --hover-bg: #f8f9fb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    /* Couleurs de thème sombre */
+    --bg-color: #1a1b1f;
+    --text-color: #dfe6e9;
+    --card-bg: #2d3436;
+    --border-color: #353b48;
+    --hover-bg: #2f3640;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Styles de base */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* En-têtes */
+h1, h2, h3 {
+    color: var(--text-color);
+    text-align: center;
+}
+
+h1 {
+    font-size: 2.5em;
+    margin-bottom: 1em;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+h1:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 3px;
+    background: var(--accent-color);
+    border-radius: 2px;
+}
+
+/* Cartes */
+.card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 4px 6px var(--shadow-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px var(--shadow-color);
+}
+
+/* Boutons */
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--accent-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+/* Thème toggle */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: var(--card-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    box-shadow: 0 2px 5px var(--shadow-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* Grilles */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 25px;
+    margin: 20px 0;
+}
+
+/* Tiers */
+.tier {
+    margin: 20px 0;
+    padding: 25px;
+    border-radius: 15px;
+    color: white;
+}
+
+.tier-s { background: var(--tier-s-color); }
+.tier-a { background: var(--tier-a-color); }
+.tier-b { background: var(--tier-b-color); }
+.tier-c { background: var(--tier-c-color); }
+.tier-d { background: var(--tier-d-color); }
+
+/* Navigation */
+.nav {
+    background: var(--card-bg);
+    padding: 15px 0;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.nav-logo {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    color: var(--text-color);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    background: var(--hover-bg);
+}
+
+/* Utilitaires */
+.text-center { text-align: center; }
+.mt-20 { margin-top: 20px; }
+.mb-20 { margin-bottom: 20px; }

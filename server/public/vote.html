@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vote des Logos - Tier List</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .logo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .logo-item {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px var(--shadow-color);
+        }
+
+        .logo-container {
+            width: 100%;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            background: var(--hover-bg);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .logo-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .group-label {
+            background: var(--accent-color);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+
+        .rating-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: var(--hover-bg);
+            border-radius: 10px;
+            width: 100%;
+        }
+
+        .rating-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .rating-button:hover {
+            transform: scale(1.1);
+            border-color: var(--accent-color);
+        }
+
+        .rating-button.selected {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        .results-section {
+            margin-top: 60px;
+        }
+
+        .tier-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .tier-label {
+            font-size: 2em;
+            font-weight: 600;
+            margin-right: 20px;
+        }
+
+        .tier-description {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Changer le thème">🌓</button>
+
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">Logo Tier List</a>
+            <div class="nav-links">
+                <a href="/upload" class="nav-link">Upload</a>
+                <a href="/vote" class="nav-link">Vote</a>
+                <a href="/test" class="nav-link">Test</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Vote des Logos</h1>
+        
+        <div class="logo-grid" id="logoGrid"></div>
+        
+        <div class="results-section" id="results"></div>
+    </div>
+
+    <div class="loading" id="loading">
+        Chargement...
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let logos = [];
+        const socket = io('http://localhost:3001');
+
+        // Gestion du thème
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Charger le thème préféré
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+
+        // Charger les logos
+        async function loadLogos() {
+            try {
+                const response = await fetch('/api/logos');
+                logos = await response.json();
+                displayLogos();
+            } catch (error) {
+                console.error('Error loading logos:', error);
+            }
+        }
+
+        // Afficher les logos
+        function displayLogos() {
+            const grid = document.getElementById('logoGrid');
+            grid.innerHTML = logos.map(logo => `
+                <div class="logo-item fade-in">
+                    <span class="group-label">Groupe ${logo.groupNumber}${logo.variant}</span>
+                    <div class="logo-container">
+                        <img src="${logo.imageUrl}" alt="${logo.name}">
+                    </div>
+                    <div class="rating-buttons" id="rating-${logo.id}">
+                        ${[1,2,3,4,5].map(rating => `
+                            <button 
+                                class="rating-button" 
+                                onclick="submitVote(${logo.id}, ${rating})"
+                                title="Noter ${rating}/5"
+                            >${rating}</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Soumettre un vote
+        async function submitVote(logoId, rating) {
+            const loading = document.getElementById('loading');
+            loading.classList.add('active');
+            
+            try {
+                const response = await fetch('/api/vote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        votes: [{
+                            logoId,
+                            rating,
+                            position: 0
+                        }]
+                    })
+                });
+                
+                if (response.ok) {
+                    const buttons = document.querySelectorAll(`#rating-${logoId} .rating-button`);
+                    buttons.forEach(btn => {
+                        btn.classList.remove('selected');
+                        if (parseInt(btn.textContent) === rating) {
+                            btn.classList.add('selected');
+                        }
+                    });
+                    refreshResults();
+                }
+            } catch (error) {
+                console.error('Error submitting vote:', error);
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        // Rafraîchir les résultats
+        async function refreshResults() {
+            try {
+                const response = await fetch('/api/results');
+                const results = await response.json();
+                displayResults(results);
+            } catch (error) {
+                console.error('Error loading results:', error);
+            }
+        }
+
+        // Afficher les résultats
+        function displayResults(results) {
+            const tiers = {
+                'S': { desc: 'Excellence', logos: [] },
+                'A': { desc: 'Très Bon', logos: [] },
+                'B': { desc: 'Bon', logos: [] },
+                'C': { desc: 'Moyen', logos: [] },
+                'D': { desc: 'À Améliorer', logos: [] }
+            };
+
+            results.forEach(logo => {
+                tiers[logo.tier].logos.push(logo);
+            });
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h2>Classement des Logos</h2>
+                ${Object.entries(tiers).map(([tier, {desc, logos}]) => `
+                    <div class="tier fade-in">
+                        <div class="tier-header tier-${tier.toLowerCase()}">
+                            <div class="tier-label">Tier ${tier}</div>
+                            <div class="tier-description">${desc}</div>
+                        </div>
+                        <div class="logo-grid">
+                            ${logos.map(logo => `
+                                <div class="logo-item">
+                                    <span class="group-label">Groupe ${logo.groupNumber}${logo.variant}</span>
+                                    <div class="logo-container">
+                                        <img src="${logo.imageUrl}" alt="${logo.name}">
+                                    </div>
+                                    <div class="stats">
+                                        <strong>Note moyenne:</strong> ${logo.averageRating ? logo.averageRating.toFixed(2) : 'N/A'}/5<br>
+                                        <strong>Nombre de votes:</strong> ${logo.voteCount}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // Écouter les mises à jour en temps réel
+        socket.on('votesUpdated', () => {
+            refreshResults();
+        });
+
+        // Initialisation
+        loadLogos();
+        refreshResults();
+    </script>
+</body>
+</html>
