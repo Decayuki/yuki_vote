@@ -220,7 +220,7 @@
         // Charger les logos
         async function loadLogos() {
             try {
-                const response = await fetch('http://localhost:3001/api/logos');
+                const response = await fetch('/api/logos');
                 logos = await response.json();
                 displayLogos();
             } catch (error) {
@@ -253,7 +253,7 @@
         // Soumettre un vote
         async function submitVote(logoId, rating) {
             try {
-                const response = await fetch('http://localhost:3001/api/vote', {
+                const response = await fetch('/api/vote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -290,7 +290,7 @@
             }));
 
             try {
-                const response = await fetch('http://localhost:3001/api/vote', {
+                const response = await fetch('/api/vote', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -308,7 +308,7 @@
         // Réinitialiser les votes
         async function resetVotes() {
             try {
-                const response = await fetch('http://localhost:3001/api/reset-votes', {
+                const response = await fetch('/api/reset-votes', {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -325,7 +325,7 @@
         // Rafraîchir les résultats
         async function refreshResults() {
             try {
-                const response = await fetch('http://localhost:3001/api/results');
+                const response = await fetch('/api/results');
                 const results = await response.json();
                 displayResults(results);
             } catch (error) {
