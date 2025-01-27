@@ -325,14 +325,18 @@
                     file: formData.get('logo')
                 });
 
-                console.log('Uploading to:', `${API_BASE}/api/upload`);
-                const response = await fetch(`${API_BASE}/api/upload`, {
+                const uploadUrl = `${API_BASE}/api/upload`;
+                console.log('Uploading to:', uploadUrl);
+                
+                const response = await fetch(uploadUrl, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Upload failed: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('Server response:', errorText);
+                    throw new Error(`Upload failed: ${response.status} - ${errorText}`);
                 }
 
                 const result = await response.json();
