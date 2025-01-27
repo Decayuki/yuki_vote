@@ -4,12 +4,13 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const config = require('./config');
 
 // Initialisation Express
 const app = express();
 
 // Configuration Supabase
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(config.supabase.url, config.supabase.key);
 
 // Configuration multer
 const upload = multer({
@@ -42,7 +43,10 @@ app.post('/api/upload', upload.single('logo'), async (req, res) => {
                 { contentType: req.file.mimetype }
             );
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase storage error:', error);
+            throw error;
+        }
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -61,7 +65,10 @@ app.post('/api/upload', upload.single('logo'), async (req, res) => {
             .select()
             .single();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+            console.error('Supabase database error:', dbError);
+            throw dbError;
+        }
 
         res.json(logo);
     } catch (error) {
