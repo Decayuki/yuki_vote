@@ -3,6 +3,7 @@
 <head>
     <title>Upload Logo</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
     <style>
         * {
             margin: 0;
@@ -35,7 +36,8 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 40px;
+            max-width: 600px;
+            margin: 0 auto;
         }
 
         .form-group {
@@ -45,103 +47,64 @@
         label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 500;
             color: #2c3e50;
+            font-weight: 500;
         }
 
-        input {
+        input[type="text"],
+        input[type="file"] {
             width: 100%;
             padding: 10px;
-            border: 2px solid #ddd;
+            border: 2px solid #e9ecef;
             border-radius: 8px;
+            font-family: inherit;
             font-size: 16px;
-            transition: border-color 0.3s;
         }
 
-        input:focus {
-            outline: none;
-            border-color: #3498db;
+        input[type="file"] {
+            padding: 8px;
+            background: #f8f9fa;
         }
 
-        button {
+        button[type="submit"] {
             background: #3498db;
             color: white;
-            padding: 12px 24px;
             border: none;
+            padding: 12px 24px;
             border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
             font-size: 16px;
             font-weight: 500;
-            cursor: pointer;
-            transition: background 0.3s;
+            width: 100%;
+            transition: background 0.2s;
         }
 
-        button:hover {
+        button[type="submit"]:hover {
             background: #2980b9;
         }
 
-        button:disabled {
-            background: #95a5a6;
+        button[type="submit"]:disabled {
+            background: #bdc3c7;
             cursor: not-allowed;
         }
 
-        .error-message {
-            background: #fee;
-            color: #c00;
-            padding: 15px;
+        .error {
+            color: #e74c3c;
+            background: #fdf0f0;
+            padding: 10px;
             border-radius: 8px;
             margin-bottom: 20px;
             display: none;
         }
 
-        .error-message:not(:empty) {
-            display: block;
-        }
-
-        .logo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 30px;
-        }
-
-        .logo-item {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-
-        .logo-item:hover {
-            transform: translateY(-5px);
-        }
-
-        .logo-container {
-            width: 100%;
-            height: 180px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 15px 0;
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-        }
-
-        .logo-container img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .group-label {
-            background: #3498db;
-            color: white;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            display: inline-block;
-            margin-bottom: 10px;
+        .success {
+            color: #27ae60;
+            background: #f0fdf4;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
         }
 
         .loading {
@@ -222,32 +185,34 @@
     </nav>
 
     <div class="container">
-        <h1>Upload Logo</h1>
+        <h1>Upload des Logos</h1>
         
-        <div id="error-message" class="error-message"></div>
-
-        <form class="upload-form" onsubmit="uploadLogo(event)">
+        <form id="uploadForm" class="upload-form fade-in" onsubmit="uploadLogo(event)">
+            <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
+            
             <div class="form-group">
-                <label for="groupNumber">Numéro de Groupe:</label>
-                <input type="number" id="groupNumber" name="group_number" required min="1">
+                <label for="group_number">Numéro du groupe :</label>
+                <input type="text" id="group_number" name="group_number" required>
             </div>
+            
             <div class="form-group">
-                <label for="variant">Variante:</label>
-                <input type="text" id="variant" name="variant" required pattern="[A-Da-d]" maxlength="1" 
-                    oninput="this.value = this.value.toUpperCase()">
+                <label for="variant">Variante :</label>
+                <input type="text" id="variant" name="variant" required>
             </div>
+            
             <div class="form-group">
-                <label for="name">Nom (optionnel):</label>
+                <label for="name">Nom du logo (optionnel) :</label>
                 <input type="text" id="name" name="name">
             </div>
+            
             <div class="form-group">
-                <label for="logo">Logo:</label>
+                <label for="logo">Fichier image :</label>
                 <input type="file" id="logo" name="logo" accept="image/*" required>
             </div>
+            
             <button type="submit">Upload</button>
         </form>
-
-        <div id="uploaded-logos" class="logo-grid"></div>
     </div>
 
     <div class="loading" id="loading">
@@ -259,64 +224,19 @@
         // Utiliser la configuration globale
         const API_BASE = window.APP_CONFIG.API_BASE;
 
-        // Charger les logos
-        async function loadLogos() {
-            const loading = document.getElementById('loading');
-            const errorDiv = document.getElementById('error-message');
-            loading.classList.add('active');
-            
-            try {
-                console.log('Fetching logos from:', `${API_BASE}/api/logos`);
-                const response = await fetch(`${API_BASE}/api/logos`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to load logos: ${response.status}`);
-                }
-                
-                const logos = await response.json();
-                console.log('Received logos:', logos);
-                
-                if (!Array.isArray(logos)) {
-                    throw new Error('Invalid logos data received');
-                }
-                
-                displayLogos(logos);
-                errorDiv.textContent = '';
-            } catch (error) {
-                console.error('Error loading logos:', error);
-                errorDiv.textContent = `Error: ${error.message}`;
-            } finally {
-                loading.classList.remove('active');
-            }
-        }
-
-        // Afficher les logos
-        function displayLogos(logos) {
-            const grid = document.getElementById('uploaded-logos');
-            grid.innerHTML = logos.map(logo => `
-                <div class="logo-item fade-in">
-                    <span class="group-label">Groupe ${logo.group_number}${logo.variant}</span>
-                    <div class="logo-container">
-                        <img 
-                            src="${logo.image_url}" 
-                            alt="${logo.name || `Logo ${logo.group_number}${logo.variant}`}"
-                            onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
-                        >
-                    </div>
-                </div>
-            `).join('');
-        }
-
         // Upload un logo
         async function uploadLogo(event) {
             event.preventDefault();
             const loading = document.getElementById('loading');
-            const errorDiv = document.getElementById('error-message');
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
             const submitButton = event.target.querySelector('button[type="submit"]');
             
             try {
                 loading.classList.add('active');
                 submitButton.disabled = true;
+                errorDiv.style.display = 'none';
+                successDiv.style.display = 'none';
                 
                 const formData = new FormData(event.target);
                 console.log('Form data:', {
@@ -343,23 +263,21 @@
                 const result = await response.json();
                 console.log('Upload successful:', result);
 
+                // Afficher le message de succès
+                successDiv.textContent = 'Logo uploaded successfully!';
+                successDiv.style.display = 'block';
+
                 // Réinitialiser le formulaire
                 event.target.reset();
-                errorDiv.textContent = '';
-
-                // Recharger les logos
-                await loadLogos();
             } catch (error) {
                 console.error('Error uploading logo:', error);
                 errorDiv.textContent = `Error: ${error.message}`;
+                errorDiv.style.display = 'block';
             } finally {
                 loading.classList.remove('active');
                 submitButton.disabled = false;
             }
         }
-
-        // Initialisation
-        loadLogos();
     </script>
 </body>
 </html>

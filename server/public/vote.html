@@ -3,6 +3,7 @@
 <head>
     <title>Vote des Logos - Tier List</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
     <style>
         * {
             margin: 0;
@@ -52,12 +53,11 @@
         }
 
         .logo-container {
-            width: 100%;
             height: 180px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
+            margin: 15px 0;
             background: #f8f9fa;
             border-radius: 10px;
             padding: 15px;
@@ -69,80 +69,84 @@
             object-fit: contain;
         }
 
-        .group-label {
-            background: #3498db;
-            color: white;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin-bottom: 15px;
-            display: inline-block;
-        }
-
-        .rating-buttons {
+        .rating {
             display: flex;
+            justify-content: center;
             gap: 10px;
-            justify-content: center;
             margin-top: 15px;
-            padding: 10px;
+        }
+
+        .rating button {
             background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .rating-button {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid #ddd;
-            background: white;
-            color: #333;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
         }
 
-        .rating-button:hover {
-            transform: scale(1.1);
-            border-color: #3498db;
+        .rating button:hover {
+            background: #e9ecef;
         }
 
-        .rating-button.selected {
+        .rating button.selected {
             background: #3498db;
             color: white;
-            border-color: #3498db;
+        }
+
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #fdf0f0;
+            display: none;
+        }
+
+        .results {
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .results h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
         }
 
         .tier {
-            margin-bottom: 40px;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
         }
 
         .tier-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 10px 20px;
-            border-radius: 10px;
-            color: white;
-        }
-
-        .tier-s { background: #e74c3c; }
-        .tier-a { background: #e67e22; }
-        .tier-b { background: #f1c40f; }
-        .tier-c { background: #2ecc71; }
-        .tier-d { background: #3498db; }
-
-        .tier-label {
-            font-size: 2em;
             font-weight: 600;
-            margin-right: 20px;
+            margin-bottom: 10px;
+            color: #2c3e50;
         }
 
-        .tier-description {
-            font-size: 0.9em;
-            opacity: 0.9;
+        .tier-logos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+        }
+
+        .tier-logo {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .tier-logo img {
+            max-width: 100%;
+            height: auto;
         }
 
         .loading {
@@ -159,15 +163,6 @@
 
         .loading.active {
             display: block;
-        }
-
-        .error-message {
-            text-align: center;
-            padding: 20px;
-            background: #fee;
-            color: #c00;
-            border-radius: 10px;
-            margin: 20px 0;
         }
 
         .nav {
@@ -233,10 +228,12 @@
 
     <div class="container">
         <h1>Vote des Logos</h1>
-        
-        <div id="error-message"></div>
-        <div class="logo-grid" id="logoGrid"></div>
-        <div class="results-section" id="results"></div>
+        <div id="error" class="error"></div>
+        <div id="logos" class="logo-grid"></div>
+        <div id="results" class="results">
+            <h2>Résultats</h2>
+            <div id="tiers"></div>
+        </div>
     </div>
 
     <div class="loading" id="loading">
@@ -251,41 +248,23 @@
 
         // Charger les logos
         async function loadLogos() {
-            const loading = document.getElementById('loading');
-            const errorDiv = document.getElementById('error-message');
-            loading.classList.add('active');
-            
             try {
-                console.log('Fetching logos from:', `${API_BASE}/api/logos`);
                 const response = await fetch(`${API_BASE}/api/logos`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to load logos: ${response.status}`);
-                }
-                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 logos = await response.json();
-                console.log('Received logos:', logos);
-                
-                if (!Array.isArray(logos)) {
-                    throw new Error('Invalid logos data received');
-                }
-                
-                displayLogos();
-                errorDiv.textContent = '';
+                displayLogos(logos);
             } catch (error) {
                 console.error('Error loading logos:', error);
-                errorDiv.textContent = `Error: ${error.message}`;
-            } finally {
-                loading.classList.remove('active');
+                document.getElementById('error').textContent = `Error loading logos: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
             }
         }
 
         // Afficher les logos
-        function displayLogos() {
-            const grid = document.getElementById('logoGrid');
-            grid.innerHTML = logos.map(logo => `
+        function displayLogos(logos) {
+            const container = document.getElementById('logos');
+            container.innerHTML = logos.map(logo => `
                 <div class="logo-item fade-in">
-                    <span class="group-label">Groupe ${logo.group_number}${logo.variant}</span>
                     <div class="logo-container">
                         <img 
                             src="${logo.image_url}" 
@@ -293,13 +272,11 @@
                             onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
                         >
                     </div>
-                    <div class="rating-buttons" id="rating-${logo.id}">
-                        ${[1,2,3,4,5].map(rating => `
-                            <button 
-                                class="rating-button" 
-                                onclick="submitVote('${logo.id}', ${rating})"
-                                title="Noter ${rating}/5"
-                            >${rating}</button>
+                    <div class="rating">
+                        ${[1, 2, 3, 4, 5].map(rating => `
+                            <button onclick="submitVote(${logo.id}, ${rating})" data-logo="${logo.id}" data-rating="${rating}">
+                                ${rating}
+                            </button>
                         `).join('')}
                     </div>
                 </div>
@@ -309,11 +286,21 @@
         // Soumettre un vote
         async function submitVote(logoId, rating) {
             const loading = document.getElementById('loading');
-            const errorDiv = document.getElementById('error-message');
-            loading.classList.add('active');
+            const errorDiv = document.getElementById('error');
             
             try {
-                console.log('Submitting vote:', { logoId, rating });
+                loading.classList.add('active');
+                errorDiv.style.display = 'none';
+
+                // Mettre à jour l'interface
+                document.querySelectorAll(`button[data-logo="${logoId}"]`).forEach(btn => {
+                    btn.classList.remove('selected');
+                    if (parseInt(btn.dataset.rating) === rating) {
+                        btn.classList.add('selected');
+                    }
+                });
+
+                // Envoyer le vote
                 const response = await fetch(`${API_BASE}/api/vote`, {
                     method: 'POST',
                     headers: {
@@ -327,23 +314,14 @@
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Vote failed: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-                const buttons = document.querySelectorAll(`#rating-${logoId} .rating-button`);
-                buttons.forEach(btn => {
-                    btn.classList.remove('selected');
-                    if (parseInt(btn.textContent) === rating) {
-                        btn.classList.add('selected');
-                    }
-                });
-
-                errorDiv.textContent = '';
-                refreshResults();
+                // Rafraîchir les résultats
+                await refreshResults();
             } catch (error) {
                 console.error('Error submitting vote:', error);
-                errorDiv.textContent = `Error: ${error.message}`;
+                errorDiv.textContent = `Error submitting vote: ${error.message}`;
+                errorDiv.style.display = 'block';
             } finally {
                 loading.classList.remove('active');
             }
@@ -351,82 +329,49 @@
 
         // Rafraîchir les résultats
         async function refreshResults() {
-            const loading = document.getElementById('loading');
-            const errorDiv = document.getElementById('error-message');
-            loading.classList.add('active');
-            
             try {
-                console.log('Fetching results from:', `${API_BASE}/api/results`);
                 const response = await fetch(`${API_BASE}/api/results`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to load results: ${response.status}`);
-                }
-                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const results = await response.json();
-                console.log('Received results:', results);
-                
-                if (!Array.isArray(results)) {
-                    throw new Error('Invalid results data received');
-                }
-                
                 displayResults(results);
-                errorDiv.textContent = '';
             } catch (error) {
-                console.error('Error loading results:', error);
-                errorDiv.textContent = `Error: ${error.message}`;
-            } finally {
-                loading.classList.remove('active');
+                console.error('Error refreshing results:', error);
+                document.getElementById('error').textContent = `Error refreshing results: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
             }
         }
 
         // Afficher les résultats
         function displayResults(results) {
+            const tiersContainer = document.getElementById('tiers');
             const tiers = {
-                'S': { desc: 'Excellence', logos: [] },
-                'A': { desc: 'Très Bon', logos: [] },
-                'B': { desc: 'Bon', logos: [] },
-                'C': { desc: 'Moyen', logos: [] },
-                'D': { desc: 'À Améliorer', logos: [] }
+                'S': results.filter(r => r.tier === 'S'),
+                'A': results.filter(r => r.tier === 'A'),
+                'B': results.filter(r => r.tier === 'B'),
+                'C': results.filter(r => r.tier === 'C'),
+                'D': results.filter(r => r.tier === 'D')
             };
 
-            results.forEach(logo => {
-                const tier = logo.tier || 'C';
-                if (tiers[tier]) {
-                    tiers[tier].logos.push(logo);
-                }
-            });
-
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = `
-                <h2>Classement des Logos</h2>
-                ${Object.entries(tiers).map(([tier, {desc, logos}]) => `
-                    <div class="tier fade-in">
-                        <div class="tier-header tier-${tier.toLowerCase()}">
-                            <div class="tier-label">Tier ${tier}</div>
-                            <div class="tier-description">${desc}</div>
-                        </div>
-                        <div class="logo-grid">
+            tiersContainer.innerHTML = Object.entries(tiers)
+                .filter(([_, logos]) => logos.length > 0)
+                .map(([tier, logos]) => `
+                    <div class="tier">
+                        <div class="tier-header">Tier ${tier}</div>
+                        <div class="tier-logos">
                             ${logos.map(logo => `
-                                <div class="logo-item">
-                                    <span class="group-label">Groupe ${logo.group_number}${logo.variant}</span>
-                                    <div class="logo-container">
-                                        <img 
-                                            src="${logo.image_url}" 
-                                            alt="${logo.name || `Logo ${logo.group_number}${logo.variant}`}"
-                                            onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
-                                        >
-                                    </div>
-                                    <div class="stats">
-                                        <strong>Note moyenne:</strong> ${logo.average_rating ? logo.average_rating.toFixed(2) : 'N/A'}/5<br>
-                                        <strong>Nombre de votes:</strong> ${logo.vote_count || 0}
-                                    </div>
+                                <div class="tier-logo">
+                                    <img 
+                                        src="${logo.image_url}" 
+                                        alt="${logo.name || `Logo ${logo.group_number}${logo.variant}`}"
+                                        onerror="this.onerror=null; this.src='${API_BASE}/placeholder.png';"
+                                    >
+                                    <div>Note: ${logo.average_rating ? logo.average_rating.toFixed(1) : 'N/A'}</div>
+                                    <div>Votes: ${logo.vote_count}</div>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
-                `).join('')}
-            `;
+                `).join('');
         }
 
         // Initialisation
