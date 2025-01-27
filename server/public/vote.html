@@ -3,6 +3,7 @@
 <head>
     <title>Vote des Logos - Tier List</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
     <meta charset="UTF-8">
     <style>
         * {
@@ -248,15 +249,21 @@
 
         // Charger les logos
         async function loadLogos() {
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            
             try {
+                loading.classList.add('active');
                 const response = await fetch(`${API_BASE}/api/logos`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 logos = await response.json();
                 displayLogos(logos);
             } catch (error) {
                 console.error('Error loading logos:', error);
-                document.getElementById('error').textContent = `Error loading logos: ${error.message}`;
-                document.getElementById('error').style.display = 'block';
+                errorDiv.textContent = `Error loading logos: ${error.message}`;
+                errorDiv.style.display = 'block';
+            } finally {
+                loading.classList.remove('active');
             }
         }
 
@@ -292,15 +299,6 @@
                 loading.classList.add('active');
                 errorDiv.style.display = 'none';
 
-                // Mettre à jour l'interface
-                document.querySelectorAll(`button[data-logo="${logoId}"]`).forEach(btn => {
-                    btn.classList.remove('selected');
-                    if (parseInt(btn.dataset.rating) === rating) {
-                        btn.classList.add('selected');
-                    }
-                });
-
-                // Envoyer le vote
                 const response = await fetch(`${API_BASE}/api/vote`, {
                     method: 'POST',
                     headers: {
@@ -315,8 +313,6 @@
                 });
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-                // Rafraîchir les résultats
                 await refreshResults();
             } catch (error) {
                 console.error('Error submitting vote:', error);
