@@ -245,8 +245,7 @@
 
     <script>
         // Configuration
-        const isDev = window.location.hostname === 'localhost';
-        const API_BASE = isDev ? 'http://localhost:3001' : window.location.origin;
+        const API_BASE = window.location.origin;
         let logos = [];
 
         // Charger les logos
